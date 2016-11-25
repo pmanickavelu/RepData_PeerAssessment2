@@ -1,0 +1,78 @@
+---
+title: "Effect on Health & Economic due to Storm"
+author: "prabhu manickavelu"
+date: "24 November 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Storms effect the health of the population and economy of that region.
+
+Hear we'll explore the NOAA Storm Database to which type of event effect the health of population the most as well as the economy. Across the United States.
+
+```{r cache=TRUE, load_data}
+if(!file.exists("StormData.csv.bz")){
+    print("not there")
+    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2","StormData.csv.bz")   
+}
+StormData <- read.csv("StormData.csv.bz")
+
+```
+## Data Processing
+
+### FATALITIES & INJURIES
+Consolidating injuries and fatalities then getting the sum of it with respect to event type to find the event which most injuries and fatalities.
+```{r}
+    StormData$FI <- StormData$FATALITIES+StormData$INJURIES
+    injuries <- tapply(StormData$FI, StormData$EVTYPE, sum)
+```
+
+### Property and Crop Damage
+Simple function to convert the amount
+```{r}
+    conver_text <- function(vals, mags){
+        # keeping ""  "-" "?" "+" "0" as 0 presision
+        # converting billions
+        vals[mags %in% c("B","b")] <- vals[mags %in% c("B","b")] * 1000000000
+        # converting milions
+        vals[mags %in% c("M","m")] <- vals[mags %in% c("M","m")] * 1000000
+        # converting thousands
+        vals[mags %in% c("K","k")] <- vals[mags %in% c("K","k")] * 1000
+        # converting h,H to hundreds
+        vals[mags %in% c("H","h")] <- vals[mags %in% c("H","h")] * 100
+        # converting the presision values
+        vals[mags %in% c("1","2","3","4","5","6","7","8")] <- vals[mags %in% c("1","2","3","4","5","6","7","8")] * 10^as.numeric(mags[mags %in% c("1","2","3","4","5","6","7","8")])
+        return(vals)
+    }
+```
+calculating the total damage by adding property and crop damage
+```{r}
+    StormData$dmg <- conver_text(StormData$CROPDMG, StormData$CROPDMGEXP) + conver_text(StormData$PROPDMG, StormData$PROPDMGEXP)
+    damage <- tapply(StormData$dmg, StormData$EVTYPE, sum)
+```
+
+
+## Results
+### FATALITIES & INJURIES
+The max amount of popluation who were inhured or had fatalities were in `r names(which.max(injuries))`
+
+The Below graph represents the findings 
+```{r message=FALSE, warning=FALSE}
+    library(plotly)
+    
+    plot_ly(data.frame(fi = injuries[injuries>0], evntyp=names(injuries[injuries>0])), labels = ~evntyp, values = ~fi, type = 'pie') %>% layout(title = 'Injuries and Fatalities due to storms Events', xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE), yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+```
+
+### Damage
+The max economic damage was through `r names(which.max(damage))`
+
+The Below graph represents the findings 
+```{r message=FALSE, warning=FALSE}
+    plot_ly(data.frame(fi = damage[damage>0]/1000000, evntyp=names(damage[damage>0])), labels = ~evntyp, values = ~fi, type = 'pie') %>% layout(title = 'Economic Damage due to storms Events', xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE), yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+```
+
+
